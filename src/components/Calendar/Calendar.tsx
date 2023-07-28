@@ -1,19 +1,30 @@
 import dayjs from "dayjs";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Calendar, dayjsLocalizer } from "react-big-calendar";
 import CustomToolbar from "./customToolbar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import useCalendarData from "../../hooks/useCalendarData";
-import { IParamsGetCalendarDataPrisma } from "../../prisma/calendar";
+import {
+  IParamsCreateCalendarDataPrisma,
+  IParamsGetCalendarDataPrisma,
+} from "../../prisma/calendar";
 import CustomModal from "../../common/CustomModal";
 import extendedDayJs from "../../utils/dayjs";
 import CalendarModal from "../../utils/modals/CalendarModal";
+import CalendarSelectModal from "../../utils/modals/CalendarSelectModal";
+
 const localizer = dayjsLocalizer(dayjs);
 
-interface IModalInfo {
+export interface IModalInfo {
   open: boolean;
   startDate: Date;
   endDate: Date;
+}
+
+export interface IModalSelect {
+  open: boolean;
+  title: string;
+  description: string;
 }
 
 const CalendarContent = () => {
@@ -22,6 +33,11 @@ const CalendarContent = () => {
     open: false,
     startDate: extendedDayJs().toDate(),
     endDate: extendedDayJs().toDate(),
+  });
+  const [openModalSelect, setOpenModalSelect] = useState<IModalSelect>({
+    open: false,
+    title: "",
+    description: "",
   });
 
   const [paramsSearch, setParamsSearch] =
@@ -32,6 +48,17 @@ const CalendarContent = () => {
     });
 
   const { data } = useCalendarData(paramsSearch);
+
+  const event = useMemo(() => {
+    if (!data) return [];
+
+    return data.calendar.map((item: IParamsCreateCalendarDataPrisma) => ({
+      title: item.title,
+      start: item.start_date,
+      end: item.end_date,
+      description: item.description,
+    }));
+  }, [data]);
 
   const handleSelect = ({ start, end }: { start: Date; end: Date }) => {
     setOpenModalInfo({
@@ -50,7 +77,20 @@ const CalendarContent = () => {
   };
 
   const handleSelectedEvent = (event: any) => {
-    console.log("Alo", event);
+    console.log(event);
+    setOpenModalSelect({
+      open: true,
+      title: event.title,
+      description: event.description,
+    });
+  };
+
+  const handleCloseModalSelect = () => {
+    setOpenModalSelect({
+      open: false,
+      title: "",
+      description: "",
+    });
   };
 
   return (
@@ -60,7 +100,7 @@ const CalendarContent = () => {
         localizer={localizer}
         defaultDate={new Date()}
         defaultView="month"
-        events={eventsData}
+        events={event}
         style={{ height: "100vh", width: "100%", backgroundColor: "white" }}
         onSelectEvent={(event) => handleSelectedEvent(event)}
         onSelectSlot={handleSelect}
@@ -73,7 +113,14 @@ const CalendarContent = () => {
         isOpen={openModalInfo.open}
         handleClose={handleCloseModal}
       >
-        <CalendarModal />
+        <CalendarModal openModalInfo={openModalInfo} />
+      </CustomModal>
+      <CustomModal
+        title={openModalSelect.title}
+        isOpen={openModalSelect.open}
+        handleClose={handleCloseModalSelect}
+      >
+        <CalendarSelectModal description={openModalSelect.description} />
       </CustomModal>
     </div>
   );
